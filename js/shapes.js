@@ -1,4 +1,22 @@
 
+var b2Proxy = {
+	addBox: function(x, y, w, h) {
+		var root = game,
+			body;
+
+		root.fixDef.shape = new b2PolygonShape();
+		root.fixDef.shape.SetAsBox(w || root.boxW, h || root.boxH);
+		root.bodyDef.type = b2Body.b2_dynamicBody;
+		root.bodyDef.position.x = x;
+		root.bodyDef.position.y = y;
+		
+		body = root.WORLD.CreateBody(root.bodyDef);
+		body.CreateFixture(root.fixDef);
+
+		return body;
+	}
+};
+
 var shapes = {
 	add_ground: function(fixDef, bodyDef) {
 		var root = game;
@@ -21,6 +39,8 @@ var shapes = {
 
 		fixDef.shape = new b2PolygonShape();
 		fixDef.shape.SetAsBox(w, h);
+
+		bodyDef.angle = Math.PI / 5;
 
 		bodyDef.position.x = x;
 		bodyDef.position.y = y;
@@ -56,6 +76,8 @@ var shapes = {
 
 		bodyDef.position.x = x;
 		bodyDef.position.y = y;
+
+		bodyDef.angle = Math.PI / 8;
 
 		fixDef.shape = new b2PolygonShape();
 		fixDef.shape.SetAsArray(vec, vec.length);

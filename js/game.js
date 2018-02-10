@@ -21,7 +21,22 @@
 		b2CircleShape = Box2D.Collision.Shapes.b2CircleShape,
 		b2DebugDraw = Box2D.Dynamics.b2DebugDraw;
 
+	var level = [];
+	level.push('ccbbb');
+	level.push('aaaaa');
+	level.push('ddbba');
+	level.push('cccee');
+	level.push('bbbba');
+	level.push('ccaaa');
+	level.push('aabbb');
+	level.push('cccee');
+	level.push('bbbba');
+	level.push('ccaaa');
+	level.push('ccbbb');
+	level.push('aaaab');
+
 	var game = {
+		blocks: [],
 		init: function() {
 			// fast DOM references
 			this.win = jr(window);
@@ -47,57 +62,12 @@
 			// bind event handlers
 			this.canvas.on('click', this.doEvent);
 
-			var fixDef = new b2FixtureDef(),
-				bodyDef = new b2BodyDef();
+			// defaults
+			this.fixDef = new b2FixtureDef(),
+			this.bodyDef = new b2BodyDef();
 
-			// add ground
-			bodyDef.type = b2Body.b2_staticBody;
-			shapes.add_ground(fixDef, bodyDef);
-
-			// add box
-			bodyDef.type = b2Body.b2_dynamicBody;
-			shapes.add_box(fixDef, bodyDef, 4, 14, 0.5, 0.5);
-		//	shapes.add_box(fixDef, bodyDef, 5.6, 11, 0.5, 0.5);
-			shapes.add_box(fixDef, bodyDef, 6.5, 14, 0.5, 0.5);
-			// add circle
-			shapes.add_circle(fixDef, bodyDef, 7, 3, 1);
-
-			// add octagon
-			shapes.add_octagon(fixDef, bodyDef, 3, 3, 0.75);
-
-
-
-			// joint start
-			fixDef.shape = new b2PolygonShape();
-			fixDef.shape.SetAsBox(0.5, 0.5);
-			bodyDef.position.x = 7;
-			bodyDef.position.y = 10;
-
-			var body1 = this.WORLD.CreateBody(bodyDef);
-			body1.CreateFixture(fixDef);
-
-
-			fixDef.shape = new b2PolygonShape();
-			fixDef.shape.SetAsBox(0.5, 0.5);
-			bodyDef.position.x = 8;
-			bodyDef.position.y = 10;
-
-			var body2 = this.WORLD.CreateBody(bodyDef);
-			body2.CreateFixture(fixDef);
-
-			var jointDef = new b2WeldJointDef();
-			jointDef.bodyA = body1;
-			jointDef.bodyB = body2;
-			jointDef.localAnchorA = new b2Vec2(1, 0);
-			jointDef.localAnchorB = body1.GetLocalCenter();
-		//	jointDef.collideConnected = true;
-
-			this.WORLD.CreateJoint(jointDef);
-			// joint end
-
-		//	var joint = new b2RevoluteJointDef();
-		//	joint.Initialize(body1, body2, body1.GetWorldCenter());
-		//	this.WORLD.CreateJoint(joint);
+			this.doEvent('draw-ground');
+			this.doEvent('draw-level');
 
 			// start
 			this.animationFrame = requestAnimationFrame(this.update);
@@ -106,6 +76,9 @@
 			var self = game,
 				cmd = (typeof event === 'string') ? event : event.type,
 				mx, my, body,
+				i, il,
+				j, jl,
+				joins,
 				args;
 			switch (cmd) {
 				// native events
@@ -114,7 +87,89 @@
 					my = event.clientY / self.SCALE;
 					body = self.getBodyAt(mx, my);
 					
-					self.WORLD.DestroyBody(body);
+					if (!body) return;
+
+					joins = [];
+					
+					var fn = function(box) {
+						joins.push(box);
+						if (box.m_jointList) {
+							if (joins.indexOf(box.m_jointList.other) < 0) {
+								fn(box.m_jointList.other);
+							}
+							if (box.m_jointList.next && joins.indexOf(box.m_jointList.next.other) < 0) {
+								fn(box.m_jointList.next.other);
+							}
+						}
+					};
+					fn(body);
+
+					while (joins.length) {
+						self.WORLD.DestroyBody( joins.pop() );
+					}
+					break;
+				// custom events
+				case 'draw-ground':
+					var width = self.WIDTH / 2 / self.SCALE,
+						top = (self.HEIGHT - 3) / self.SCALE;
+
+					self.fixDef.density = 1.0;
+					self.fixDef.friction = 0.5;
+					self.fixDef.restitution = 0.2;
+					self.fixDef.shape = new b2PolygonShape();
+					self.fixDef.shape.SetAsBox(width, 3 / self.SCALE);
+
+					self.bodyDef.position.x = width;
+					self.bodyDef.position.y = top;
+					self.bodyDef.type = b2Body.b2_staticBody;
+
+					// half width, half height. eg actual height here is 1 unit
+					self.WORLD.CreateBody(self.bodyDef).CreateFixture(self.fixDef);
+					break;
+				case 'draw-level':
+					self.boxW = 0.5;
+					self.boxH = 0.5;
+
+					var jointDef,
+						lvl = level,
+						offset = {
+							x: 10,
+							y: 15.25 - lvl.length
+						},
+						box,
+						c;
+					il = lvl.length;
+					jl = 5;
+					for (i=0; i<il; i++) {
+						self.blocks.push([]);
+						for (j=0; j<jl; j++) {
+							box = (lvl[i].charAt(j) === '0') ? false : b2Proxy.addBox(offset.x + j, offset.y + i);
+							self.blocks[i].push(box);
+						}
+					}
+					for (i=0; i<il; i++) {
+						for (j=0; j<jl; j++) {
+							c = lvl[i].charAt(j);
+							if (c === '0') continue;
+
+							if (j > 0 && c === lvl[i].charAt(j-1)) {
+								jointDef = new b2WeldJointDef();
+								jointDef.bodyA = self.blocks[i][j-1];
+								jointDef.bodyB = self.blocks[i][j];
+								jointDef.localAnchorA = new b2Vec2(1, 0);
+								jointDef.localAnchorB = jointDef.bodyA.GetLocalCenter();
+								self.WORLD.CreateJoint(jointDef);
+							}
+							if (i > 0 && c === lvl[i-1].charAt(j)) {
+								jointDef = new b2WeldJointDef();
+								jointDef.bodyA = self.blocks[i-1][j];
+								jointDef.bodyB = self.blocks[i][j];
+								jointDef.localAnchorA = new b2Vec2(0, 1);
+								jointDef.localAnchorB = jointDef.bodyA.GetLocalCenter();
+								self.WORLD.CreateJoint(jointDef);
+							}
+						}
+					}
 					break;
 			}
 		},
@@ -127,19 +182,15 @@
 			
 			// Query the world for overlapping shapes.
 			function GetBodyCallback(fixture) {
-				var shape = fixture.GetShape();
-
 				if (fixture.GetBody().GetType() != b2Body.b2_staticBody || includeStatic) {
-					var inside = shape.TestPoint(fixture.GetBody().GetTransform(), mouse_p);
-					
-					if (inside) {
+					var shape = fixture.GetShape();
+					if (shape.TestPoint(fixture.GetBody().GetTransform(), mouse_p)) {
 						body = fixture.GetBody();
 						return false;
 					}
 				}
 				return true;
 			}
-			
 			this.WORLD.QueryAABB(GetBodyCallback, aabb);
 
 			return body;
