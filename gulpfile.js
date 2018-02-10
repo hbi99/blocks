@@ -22,8 +22,8 @@ var include_options = {
 		basepath  : '@file'
 	},
 	srcPaths = {
-		scripts : ['./js/**/*.js', '!./js/**/*.min.js', './js/game.js'],
-		styles  : ['./css/**/*.less', './css/style.less']
+		scripts : ['./js/**/*.js', '!./js/**/*.min.js', './js/game.js', './js/level-builder.js'],
+		styles  : ['./css/**/*.less', '!./css/mixins.less']
 	},
 	destPaths = {
 		base    : './',
@@ -58,7 +58,7 @@ gulp.task('clean:www', del.bind(null, [destPaths.base +'*.min.*']));
 
 // Processes javascript files
 gulp.task('scripts', function() {
-	return gulp.src(srcPaths.scripts[2])
+	return gulp.src([srcPaths.scripts[2], srcPaths.scripts[3]])
 		.pipe($.fileInclude(include_options))
 	//	.pipe($.uglify())
 		.pipe($.rename({suffix: '.min'}))
@@ -68,7 +68,7 @@ gulp.task('scripts', function() {
 
 // Processes Less files
 gulp.task('styles', function() {
-	return gulp.src(srcPaths.styles[1])
+	return gulp.src(srcPaths.styles)
 		.pipe($.less())
 		.pipe(cleanCSS({keepSpecialComments: 0}))
 		.pipe($.rename({suffix: '.min'}))

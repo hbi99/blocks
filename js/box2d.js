@@ -4649,8 +4649,7 @@ Box2D.postDefs = [];
    }
    b2Body.prototype.Merge = function (other) {
       var f;
-      for (f = other.m_fixtureList;
-      f;) {
+      for (f = other.m_fixtureList; f;) {
          var next = f.m_next;
          other.m_fixtureCount--;
          f.m_next = this.m_fixtureList;
@@ -4659,9 +4658,9 @@ Box2D.postDefs = [];
          f.m_body = body2;
          f = next;
       }
-      body1.m_fixtureCount = 0;
       var body1 = this;
       var body2 = other;
+      body1.m_fixtureCount = 0;
       var center1 = body1.GetWorldCenter();
       var center2 = body2.GetWorldCenter();
       var velocity1 = body1.GetLinearVelocity().Copy();

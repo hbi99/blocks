@@ -31,6 +31,7 @@
     "gulp-util": "^2.2.20",
     "http-proxy-middleware": "^0.17.3",
     "jshint-stylish": "^0.2.0",
+    "polyop.js": "^1.0.7",
     "run-sequence": "^0.3.7"
   }
 }

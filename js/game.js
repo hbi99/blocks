@@ -1,7 +1,7 @@
 
 /* jshint ignore:start */
 @@include('sizzle.min.js')
-@@include('box2d.min.js')
+@@include('box2d.js')
 /* jshint ignore:start */
 
 (function() {
@@ -22,20 +22,24 @@
 		b2DebugDraw = Box2D.Dynamics.b2DebugDraw;
 
 	var level = [];
-	level.push('ccbbb');
-	level.push('aaaaa');
-	level.push('ddbba');
-	level.push('cccee');
-	level.push('bbbba');
-	level.push('ccaaa');
-	level.push('aabbb');
-	level.push('cccee');
-	level.push('bbbba');
-	level.push('ccaaa');
-	level.push('ccbbb');
-	level.push('aaaab');
+//	level.push('00b00');
+//	level.push('00b00');
+//	level.push('00b00');
+//	level.push('00b00');
+//	level.push('00000');
+//	level.push('aaaaa');
+//	level.push('a000a');
+//	level.push('bbcbb');
+//	level.push('aaaaa');
+//	level.push('aeeaa');
+//	level.push('aecac');
+//	level.push('addbb');
+	level.push('dd000');
+//	level.push('00000');
+//	level.push('00000');
 
 	var game = {
+		boxes: [],
 		blocks: [],
 		init: function() {
 			// fast DOM references
@@ -44,8 +48,8 @@
 			this.body = jr('body');
 			this.canvas = this.body.find('#canvas');
 			this.context = this.canvas[0].getContext('2d');
-			this.WIDTH  = this.canvas[0].width = 700;
-			this.HEIGHT = this.canvas[0].height = 450;
+			this.WIDTH  = this.canvas[0].width = 400;
+			this.HEIGHT = this.canvas[0].height = 550;
 			this.MARGIN = 10;
 
 			this.FR = 1/60;
@@ -85,42 +89,32 @@
 				case 'click':
 					mx = event.clientX / self.SCALE;
 					my = event.clientY / self.SCALE;
-					body = self.getBodyAt(mx, my);
+					body = box2Proxy.getBodyAt(mx, my);
 					
-					if (!body) return;
-
-					joins = [];
-					
-					var fn = function(box) {
-						joins.push(box);
-						if (box.m_jointList) {
-							if (joins.indexOf(box.m_jointList.other) < 0) {
-								fn(box.m_jointList.other);
-							}
-							if (box.m_jointList.next && joins.indexOf(box.m_jointList.next.other) < 0) {
-								fn(box.m_jointList.next.other);
-							}
+					if (body) {
+						joins = box2Proxy.getBodyGroup(body);
+						while (joins.length) {
+							self.WORLD.DestroyBody( joins.pop() );
 						}
-					};
-					fn(body);
-
-					while (joins.length) {
-						self.WORLD.DestroyBody( joins.pop() );
 					}
 					break;
 				// custom events
 				case 'draw-ground':
-					var width = self.WIDTH / 2 / self.SCALE,
-						top = (self.HEIGHT - 3) / self.SCALE;
+					self.ground = {
+						width: 2.5 * self.SCALE,
+						height: 1 * self.SCALE
+					};
+					self.ground.top = (self.HEIGHT - self.ground.height) / self.SCALE;
+					self.ground.left = self.WIDTH / 2 / self.SCALE;
 
 					self.fixDef.density = 1.0;
 					self.fixDef.friction = 0.5;
 					self.fixDef.restitution = 0.2;
 					self.fixDef.shape = new b2PolygonShape();
-					self.fixDef.shape.SetAsBox(width, 3 / self.SCALE);
+					self.fixDef.shape.SetAsBox(self.ground.width / self.SCALE, self.ground.height / self.SCALE);
 
-					self.bodyDef.position.x = width;
-					self.bodyDef.position.y = top;
+					self.bodyDef.position.x = self.ground.left;
+					self.bodyDef.position.y = self.ground.top;
 					self.bodyDef.type = b2Body.b2_staticBody;
 
 					// half width, half height. eg actual height here is 1 unit
@@ -132,83 +126,73 @@
 
 					var jointDef,
 						lvl = level,
+						box, char,
 						offset = {
-							x: 10,
-							y: 15.25 - lvl.length
-						},
-						box,
-						c;
+							x: (self.WIDTH / 2 / self.SCALE) - 2,
+							y: self.ground.top - lvl.length - 0.5
+						};
 					il = lvl.length;
-					jl = 5;
 					for (i=0; i<il; i++) {
-						self.blocks.push([]);
-						for (j=0; j<jl; j++) {
-							box = (lvl[i].charAt(j) === '0') ? false : b2Proxy.addBox(offset.x + j, offset.y + i);
-							self.blocks[i].push(box);
+						self.boxes.push([]);
+						for (j=0; j<5; j++) {
+							box = (lvl[i].charAt(j) === '0') ? false : box2Proxy.addBox(offset.x + j, offset.y + i);
+							self.boxes[i].push(box);
 						}
 					}
 					for (i=0; i<il; i++) {
-						for (j=0; j<jl; j++) {
-							c = lvl[i].charAt(j);
-							if (c === '0') continue;
+						for (j=0; j<5; j++) {
+							char = lvl[i].charAt(j);
+							if (char === '0') continue;
 
-							if (j > 0 && c === lvl[i].charAt(j-1)) {
+							if (j > 0 && char === lvl[i].charAt(j-1)) {
 								jointDef = new b2WeldJointDef();
-								jointDef.bodyA = self.blocks[i][j-1];
-								jointDef.bodyB = self.blocks[i][j];
+								jointDef.bodyA = self.boxes[i][j-1];
+								jointDef.bodyB = self.boxes[i][j];
 								jointDef.localAnchorA = new b2Vec2(1, 0);
 								jointDef.localAnchorB = jointDef.bodyA.GetLocalCenter();
 								self.WORLD.CreateJoint(jointDef);
 							}
-							if (i > 0 && c === lvl[i-1].charAt(j)) {
+							if (i > 0 && char === lvl[i-1].charAt(j)) {
 								jointDef = new b2WeldJointDef();
-								jointDef.bodyA = self.blocks[i-1][j];
-								jointDef.bodyB = self.blocks[i][j];
+								jointDef.bodyA = self.boxes[i-1][j];
+								jointDef.bodyB = self.boxes[i][j];
 								jointDef.localAnchorA = new b2Vec2(0, 1);
 								jointDef.localAnchorB = jointDef.bodyA.GetLocalCenter();
 								self.WORLD.CreateJoint(jointDef);
 							}
 						}
 					}
-					b2Proxy.addHexagon(5.7, -2.5, 0.75);
+					/*
+					console.log( self.boxes[0][0]GetWorldPoint );
+					for (var key in self.boxes[0][0]) console.log( key );
+					var pos,
+						poly;
+					for (i=0; i<il; i++) {
+						for (j=0; j<5; j++) {
+							pos = self.boxes[0][0].GetPosition();
+							poly = [];
+						}
+					}
+					*/
+				//	box2Proxy.addBox(offset.x, 1.5);
+				//	box2Proxy.addHexagon(5.7, -2.5, 0.75);
 					break;
 			}
 		},
-		getBodyAt: function(x, y) {
-			var mouse_p = new b2Vec2(x, y),
-				aabb = new b2AABB(),
-				body = null;
-			aabb.lowerBound.Set(x - 0.001, y - 0.001);
-			aabb.upperBound.Set(x + 0.001, y + 0.001);
-			
-			// Query the world for overlapping shapes.
-			function GetBodyCallback(fixture) {
-				if (fixture.GetBody().GetType() != b2Body.b2_staticBody || includeStatic) {
-					var shape = fixture.GetShape();
-					if (shape.TestPoint(fixture.GetBody().GetTransform(), mouse_p)) {
-						body = fixture.GetBody();
-						return false;
-					}
-				}
-				return true;
-			}
-			this.WORLD.QueryAABB(GetBodyCallback, aabb);
-
-			return body;
-		},
 		update: function() {
-			var self = game;
+			var self = game,
+				world = self.WORLD;
 
-			self.WORLD.Step(self.FR, 10, 10);
-			self.WORLD.DrawDebugData();
-			self.WORLD.ClearForces();
+			world.Step(self.FR, 10, 10);
+			world.DrawDebugData();
+			world.ClearForces();
 
 			self.render();
 
 			if (!self.animationFrame) return;
 			self.animationFrame = requestAnimationFrame(self.update);
 		},
-		render: function() {
+		debug: function() {
 			//setup debug draw
 			var debugDraw = new b2DebugDraw();
 			debugDraw.SetSprite(this.context);
@@ -217,12 +201,44 @@
 			debugDraw.SetLineThickness(1.0);
 			debugDraw.SetFlags(b2DebugDraw.e_shapeBit | b2DebugDraw.e_jointBit);
 			this.WORLD.SetDebugDraw(debugDraw);
+		},
+		render: function() {
+			var ctx = this.context,
+				scale = this.SCALE,
+				boxes = this.boxes,
+				lvl = level,
+				j, i, il = lvl.length,
+				spec;
+
+			// clear view
+		//	ctx.clearRect(0, 0, this.WIDTH, this.HEIGHT);
+			this.debug();
+
+			ctx.lineWidth = 1.5;
+			ctx.strokeStyle = '#369';
+			ctx.fillStyle = 'rgba(0,100,200,0.5)';
+
+		//	for (i=0; i<il; i++) {
+		//		for (j=0; j<5; j++) {
+		//			this.boxes[i][j];
+		//		}
+		//	}
+
+		//	for (; i<il; i++) {
+		//		spec = boxes[i];
+		//		ctx.beginPath();
+		//		ctx.rect(10, 100, 100, 100);
+		//		ctx.closePath();
+		//		ctx.stroke();
+		//		ctx.fill();
+		//	}
 		}
 	};
 
+	// includes
 	@@include('raf.js')
 	@@include('junior.js')
-	@@include('shapes.js')
+	@@include('box2Proxy.js')
 
 	window.game = game;
 	window.onload = game.init.bind(game);
