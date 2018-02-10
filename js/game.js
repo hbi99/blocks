@@ -170,6 +170,7 @@
 							}
 						}
 					}
+					b2Proxy.addHexagon(5.7, -2.5, 0.75);
 					break;
 			}
 		},
